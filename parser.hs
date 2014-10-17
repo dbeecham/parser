@@ -1,5 +1,6 @@
 import Control.Monad
 
+-- hej
 type Parser a = String -> Maybe (a, String)
 
 data Expr = Num Double | X | Y | Add Expr Expr deriving Show
