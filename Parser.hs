@@ -1,7 +1,11 @@
 module Parser where
 
 import Control.Applicative
+import Data.Monoid
 import Data.Char
+
+(&) :: a -> (a -> b) -> b
+(&) = flip ($)
 
 newtype Parser a = Parser { parse :: String -> (Maybe a, String) }
 
@@ -9,16 +13,11 @@ instance Functor Parser where
     fmap f a = Parser (\x -> let (res, rest) = parse a x in
                         (fmap f res, rest))
 
-instance Monoid (Parser a) where
-    mempty = Parser (\str -> (Nothing, str))
-    p <> q = Parser (\str -> case parse p str of
+instance (Monoid a) => Monoid (Parser a) where
+    mempty = Parser (\str -> (Just mempty, str))
+    mappend p q = Parser (\str -> case parse p str of
                         (Just a, rest) -> case parse q rest of
-                            (Just b, rest') -> (Just b, rest') -- TODO
-                            (Nothing, _) -> (Nothing, 
-
-    p >>= f = Parser (\str -> case parse p str of
-                        (Just a, rest) -> case parse (f a) rest of
-                            (Just b, rest') -> (Just b, rest')
+                            (Just b, rest') -> (Just (a <> b), rest') -- TODO
                             (Nothing, _) -> (Nothing, str)
                         (Nothing, _) -> (Nothing, str))
 
@@ -68,8 +67,17 @@ anyof str = anyofp (map token str)
 char :: Parser Char
 char = anyof "abcdefghijklmnopqrstuvwzyxABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+string :: String -> Parser String
+string str = fmap token str &
+             (fmap.fmap) tolist &
+             mconcat
+    where tolist x = [x]
+
 digit :: Parser Char
 digit = anyof "0123456789"
+
+whitespace :: Parser Char
+whitespace = anyof " \n\t"
 
 integer :: Parser Integer
 integer = fmap read (some digit)
@@ -104,11 +112,3 @@ simpleDouble = do
 
 float :: Parser Double
 float = expdotDouble <|> expDouble <|> dotDouble <|> simpleDouble 
-
-test :: Parser String
-test = do
-    a <- token 'a'
-    b <- token 'b'
-    c <- anything
-    return [a, b, c]
-
