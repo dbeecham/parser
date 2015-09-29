@@ -1,49 +1,86 @@
 import Parser
+import Data.Monoid
+import Control.Applicative
 
-data Expr = Number Double | X | Operator Op Expr Expr | Function Fun Expr
-data Op = Add | Mul
-data Fun = Sin | Cos
-
-instance Show Op where
-    show Add = "+"
-    show Mul = "*"
-
-instance Show Fun where
-    show Sin = "sin"
-    show Cos = "cos"
+data Expr =   Number Double
+            | X
+            | Add Expr Expr
+            | Mul Expr Expr
+            | Sin Expr
+            | Cos Expr
 
 instance Show Expr where
     show (Number x) = show x
     show (X) = "x"
-    show (Operator Add a b) = "(" ++ show a ++ " + " ++ show b ++ ")"
-    show (Operator Mul a b) = show a ++ " * " ++ show b
-    show (Function f a) = show f ++ "(" ++ show a ++ ")"
+    show (Add a b) = "(" ++ show a ++ " + " ++ show b ++ ")"
+    show (Mul a b) = show a ++ " * " ++ show b
+    show (Sin a) = "sin " ++ show a
+    show (Cos a) = "cos " ++ show a
 
 exampleExpr :: Expr
-exampleExpr = Operator Add (Operator Mul (Function Cos X) 
-                                         (Operator Add (Number 3)
-                                                       (Number 8))) 
-                           (Function Sin X)
-
-
+exampleExpr = Add (Mul (Cos X) 
+                       (Add (Number 3)
+                            (Number 8))) 
+                  (Sin X)
 
 eval :: Expr -> Double -> Double
 eval (Number x) _ = x
 eval (X) x = x
-eval (Operator Add a b) x = (eval a x) + (eval b x)
-eval (Operator Mul a b) x = (eval a x) * (eval b x)
-eval (Function Sin a) x = sin (eval a x)
-eval (Function Cos a) x = cos (eval a x)
+eval (Add a b) x = (eval a x) + (eval b x)
+eval (Mul a b) x = (eval a x) * (eval b x)
+eval (Sin a) x = sin (eval a x)
+eval (Cos a) x = cos (eval a x)
 
-parseNumber :: Parser Expr
-parseNumber = fmap Number float
 
-parseX :: Parser Expr
-parseX = fmap (\_ -> X) (token 'x' <|> token 'X')
+-- PARSING
 
-parseOperator :: Parser Expr
-parseOperator = do
-    
+expr :: Parser Expr
+expr = addition <|> term
+
+addition :: Parser Expr
+addition = do
+    a <- term
+    many whitespace
+    token '+'
+    many whitespace
+    b <- expr
+    return (Add a b)
+
+term :: Parser Expr
+term = multiplication <|> factor
+
+multiplication :: Parser Expr
+multiplication = do
+    a <- factor
+    many whitespace
+    token '*'
+    many whitespace
+    b <- factor
+    return (Mul a b)
+
+factor :: Parser Expr
+factor = cos <|> sin <|> x <|> number <|> parens
+
+sin :: Parser Expr
+sin = undefined
+
+
+
+
+x :: Parser Expr
+x = fmap (\_ -> X) $ token 'x' <|> token 'X'
+
+number :: Parser Expr
+number = fmap Number float
+
+parens :: Parser Expr
+parens = do
+    token '('
+    many whitespace
+    a <- expr
+    many whitespace
+    token ')'
+    return a
 
 readExpr :: String -> Maybe Expr
 readExpr = undefined
